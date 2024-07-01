@@ -1,5 +1,5 @@
 const User = require("../model/authModel");
-const {hashPassword} = require("../utils/authUtils");
+const {hashPassword,comparePassword} = require("../utils/authUtils");
 const jwt = require("jsonwebtoken");
 
 
@@ -87,4 +87,56 @@ exports.registerUser = async (req , res) => {
 
 //! Login User 
 
-exports.loginUser = async (req , res) => {};
+exports.loginUser = async (req , res) => { 
+   try{
+    const {email,password} = req.body;
+    
+    //!Checkin user is existing
+    const existUser = await User.findOne({email});
+        if(!existUser){
+            return res.status(400).json({
+                message:"User not found",
+                success: false,
+                statusCode:0,
+            });
+        }
+
+    //! compare password
+    const passwordmatch = await comparePassword(password,existUser.password);
+    if(!passwordmatch){
+        return res.status(400).json({
+            message:"Invalid password",
+            success: false,
+            statusCode:0,
+        });
+     }
+
+     //create jwt token
+     let token = jwt.sign(
+        {userId: existUser._id },
+        process.env.JWT_SECRET,
+        { expiresIn: "7d" });
+
+     //!response
+
+     res.status(200).json({
+        message:"User login successfully",
+        success: true,
+        statusCode:1,
+        data:{
+            id: existUser._id,
+            email:existUser.email,
+            name:existUser.name,
+            token,
+        }
+    });
+
+    }catch(err){
+        console.log(err);
+        res.status(500).json({
+            message:"server error",
+            success: false,
+            statusCode:0,
+        })
+    }  
+};
